@@ -6,3 +6,6 @@ import atexit
 
 # Create Flask app
 app - Flask(__name__)
+
+# Global variable for Arduino connection
+arduino - None
