@@ -27,7 +27,7 @@ def connect_to_arduino():
       return False
   return False
   
-def send_command(command)
+def send_command(command): 
   global ser
   if ser is None or not ser.is_open:
     if not connect_to_arduino():
@@ -45,7 +45,7 @@ def send_command(command)
 def get_status():
   global ser
   if ser is None or not ser.is_open:
-    if not connecct_to_arduino():
+    if not connect_to_arduino():
       return {"1": False, "2": False, "3": False}
   try:
     ser.reset_input_buffer()
@@ -82,9 +82,9 @@ def index():
 @app.route('/status')
 def api_status():
   led_states = get_status()
-  return jsonify(led-status)
+  return jsonify(led_states)
 
 if __name__ == '__main__':
-    app.run(bebug=True)
+    app.run(bebug=True) 
     
 
