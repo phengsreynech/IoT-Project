@@ -1,6 +1,6 @@
 // Pin definitions
 const int redLed = 2;
-const int yellow Led = 3;
+const int yellowLed = 3;
 const int greenLed = 4;
 const int redButton = 7;
 const int yellowButton = 8;
@@ -20,7 +20,7 @@ void setup() {
   pinMode(yellowButton, INPUT_PULLUP);
   pinMode(greenButton, INPUT_PULLUP);
 
-  Serial.behin(9600);
+  Serial.begin(9600);
   sendStatus();
 }
 
@@ -28,12 +28,12 @@ bool lastRedBtn = LOW;
 bool lastYellowBtn = LOW;
 bool lastGreenBtn = LOW;
 
-Void loop() {
+void loop() {
   bool currRed = digitalRead(redButton);
   bool currYellow = digitalRead(yellowButton);
   bool currGreen = digitalRead(greenButton);
 
-  if (lastRedBtn == HIGH && currREd == LOW) { // falling edge detected
+  if (lastRedBtn == HIGH && currRed == LOW) { // falling edge detected
   toggleLed('R');
   sendStatus();
   }
@@ -71,7 +71,7 @@ void toggleLed(char cmd) {
     yellowState = !yellowState;
     if (yellowState) { redState = false; greenState = false; }
   } else if (cmd == 'G') { 
-    greeenState = !greenState;
+    greenState = !greenState;
     if (greenState) { redState = false; yellowState = false; }
   }
 }
