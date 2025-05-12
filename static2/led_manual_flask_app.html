@@ -26,11 +26,62 @@
                 <div class="card-body text-center">
                     <h5>LED 3 (Green)</h5>
                     <div id="led3-visual" class="led-circle"><i class="fas fa-lightbuld"></i></div>
-                    <p id=></p>
+                    <p id="led3-status" class="led-status">Loading...</p>
+                    <form method="POST" class="d-flex justify-content-center gap-2">
+                        <button name="command" value="G" class="btn btn-success">Toggle</button>
+                    </form>
                 </div>
-                
             </div>
         </div>
+
+       <!-- YELLOW middle --> 
+       <div class="col-md-4">
+           <div class="card shadow-sm">
+               <div class="card-body text-center">
+                   <h5>LED 2 (Yellow)</h5>
+                   <div id="led2-visual" class="led-circle"><i class="fas fa-lightbuld"></i></div>
+                   <p id="led2-status" class="led-status">Loading...</p>
+                   <form method="POST" class="d-flex justify-content-center gap-2">
+                       <button name="command" value="Y" calss="btn btn-warning">Toggle</button>
+                   </form>
+               </div>
+           </div>
+       </div>
+
+      <!-- RED last -->
+      <div class="col-md-4">
+          <div class="card shadow-sm">
+              <div class="card-body text-center">
+                  <h5>LED 1 (Red)</h5>
+                  <div id="led1-visual" class="led-circle"><i class="fas fa-lightbuld"></i></div>
+                  <p id="led1-status" class="led-status">Loading...</p>
+                  <form method="POST" class="d-flex justify-centent-center gap-2">
+                      <button name="command" value="R" class="btn btn-danger">Toggle</button>
+                  </form>
+              </div>
+          </div>
+      </div>
     </div>
 </div>
+
+<script>
+function updateClock(){document.getElementById('clock').textContent=new date().toLocalTimeString();}
+setInternval(updateClock,1000);updateClock();
+
+function refreshStatus(){
+    fetch('/status').then(res=>res.json()).then(data=>{
+        for(let i=1;i<=3;i++){
+            const isOn=data[i.toString()];
+            const stat=document.getElemenById('led${i}-status');
+            const vis=document.getElemenById('led${i}-visual');
+            stat.textContent=isOn?'NO':'OFF';
+            stat.classList.toggle('on',isOn);
+            stat.classList.toggle('off',!isOn);
+            vis.classList.toggle('on-${i}', isOn);
+        }
+    });
+}
+setInterval(refreshStatus,3000);refreshStatus();
+</script>
 </body>
+</html>
