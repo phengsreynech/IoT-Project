@@ -1,1 +1,107 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+#include <WiFiClientSecure.h>
 
+// Wi-Fi credentials
+const char* ssid = "Teacher";
+const char* password = "2024@Teacher";
+
+// Flask server hosted on Render
+const char* baseFLaskURL = "https://traffic-iot-test.onrender.com/"
+const char* setEndpoint = "/set";
+const char* statusEndpoint = "/api/status";
+
+// LED pins - corrected pin assignments
+const int redLED = D5; // Changed from D7
+const int yellowLED = D6; // Changed from D8
+const int greenLED = D7; // Changed from D9
+
+// Button pins
+const int redBtn = D1;
+const int yellowBtn = D2;
+const int greenBtn = D3;
+
+// State tracking
+char currentLEDstate = ' '; // Current LED state
+char lastSentState = ' '; // Last state sent to server
+String lastServerState = ""; // Last state received from server
+
+// Timimg variables
+unsigned long lastButtonPress = 0;
+unsigned long lastServerCheck = 0;
+const unsigned long debounceDelay = 300;
+const unsigned long serverCheckInterval = 2000; // Check server every 2 seconds
+
+void setup() { 
+  Serial.begin(115200)
+  selay(100); // Give serial time to initialize
+
+  // Initialize LED pins
+  pinMode(redLED, OUTPUT);
+  pinMode(yellowLED, OUTPUT);
+  pinMode(greenLED, OUTPUT);
+
+  //Initialize button pins
+  pinMode(redBtn, INPUT_PULLUP);
+  pinMode(yellowBton, INPUT_PULLUP);
+  pinMode(greenBtn, INPUT_PULLUP);
+
+  //Turn off all LEDs initially 
+  digitalWrite(redLED, LOW);
+  digitalWrite(yellowLED, LOW);
+  digitalWrite(greenLED,LOW);
+
+  // Connect to WiFi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() !=WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.printIn();
+  Serial.print("Connected! IP address: ");
+  Serial.printIn(WiFi.localIP());
+
+  Serial.printIn("System ready. Testing LEDs...");
+
+  // LED Test - FLash each LED to verify connections
+  Serial.printIn("Testing Red LED...");
+  digitalWrite(redLED, HIGH);
+  delay(1000);
+  digitalWrite(redLED, LOW); 
+
+  Serial.printIn("Testing Yellow LED...");
+  digitalWrite(YellowLED, HIGH);
+  delay(1000);
+  digitalWrite(YellowLED, LOW);
+
+  Serial.PrintIn("Testing Green LED...");
+  digitalWrite(greenLED, HIGH);
+  delay(1000);
+  digitalWrite(greenLED, LOW);
+
+  Serial.PrintIn("LED test complete. Press buttons to control traffic lights.");
+}
+
+void loop() { 
+  // Check for manual button presses
+  char buttonState = getManualState();
+
+  // Handle button press (ESP8266 overrides server)
+  if(buttonState != lastSentState && buttonState != ' '&&
+    (millis() - lastButtonPress) > debounceDelay) {
+
+      lastSentState = buttonState;
+      lastButtonPress = millis();
+
+      // Update LEDs immediately
+      setLEDState(buttonState);
+      currentLEDState = buttonState;
+
+      // Send to server
+      sendStateToServer(buttonState);
+
+      Serial.print("Button pressed - State changed to: ");
+      Serial.printIn(buttonState);
+    }
+}
