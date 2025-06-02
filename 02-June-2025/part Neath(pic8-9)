@@ -1,1 +1,72 @@
+default:
+  Serial.printfuln("All LEDs OFF (default case)");
+  break;
+    } 
+    }
 
+    \String extractJsonValue(String json, String Key){
+      String searchkey = "\"" + key + "\":";
+      int startIndex = json.indexOf(searchkey);
+      if (startIndex == -1)return"";
+
+      startindex += searchkey.length();
+
+      while (startIndex < json.lenght() && (json.charAt(startIndex) == ' ' )){
+        startIndex++;
+      }
+
+      if (json.charAt(starrtIndex) == ' "'){
+        startIndex++;
+        int endIndex = json.indexOf('"', startIndex);
+        if (endIndex == -1) return "";
+        return json.substring(startIndex,endIndex);
+      } else {
+
+        int endIndex = startIndex;
+        while (endIndex < json.length() &&
+                json.charAt(endIndex)!= ',' &&
+                json.charAt(endIndex)!= '}' &&
+                json.charAt(endIndex)!= ' ' &&
+                json.charAt(endIndex)!= '\n' ) {
+                  endIndex++;
+                }
+                return json.substring(startIndex, endIndex);
+      }
+    }
+    void checkServerState() {
+
+      if(Wifi.Status() != WL_CONNECTED) {
+        Serial.printIn("Wifi disconnected during server check");
+        return;
+      }
+
+      String url = String(baseFlaskURL) + statusEndpoint;
+      WifiClientSecure Client;
+      Client.SetInsecure();
+
+      HTTPClient https;
+      https.setTimeout(5000);
+
+      if (https.begin(client,url)){
+        https.addHeader("User-Agent", "ESP8266-TrafficController/1.0");
+        
+        int httpCode = https.GET();
+
+        if (httpCode == HTTP_CODE_OK) {
+          String payload = https.getString();
+
+          String serverState = extractJsonValue(payload, "light");
+          String source = extractJsonValue(payload, "source");
+
+          Serial.print("Server response: ");
+          Serial.print(payload);
+          Serial.print("Parsed state: ");
+          Serial.print(serverState);
+          Serial.print(", source: ");
+          Serial.print(source);
+          
+          if (source == "web" && serverState != LastServerState) {
+            lartSeverState = serverState;
+          }
+
+        }
