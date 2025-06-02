@@ -1,1 +1,87 @@
+        char newStare = ' ';
+        if (serverState == "R") newState = 'R';
+        else if (serverState == "Y") newState = 'Y';
+        else if (serverState == "G") newState = 'G';
+        else if (serverState == "OFF") newState = ' ';
 
+        // Update LEDs if different from current state
+        if (newState != currentLEDState) {
+          setLEDState(newState);
+          currentLEDState = newState;
+          Serial.print("Remote command received - LED state changed to: ");
+          serial.println(serverState);
+        }
+      }
+    } else if (httpCode != -1) {
+      Serial.print("Server status check failed: ");
+      serial.print(httpCode);
+    }
+
+    https.end();
+  }
+}
+
+void sendStateToServer(char state) {
+  // Check WiFi connection
+  if (WiFi.status() != WL_CONNECTION) {
+    Serial.println("WiFi disconnected! Attempting to reconnect...");
+    WiFi.begin(ssid, password);
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 10) {
+      delay(500);
+      Serial.print(".");
+      attempts++;
+    }
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("Failed to reconnect to WiFi");
+      return;
+    }
+    Serial.println("WiFi reconnected");
+  }
+
+  String url = String(baseFlaskurl) + setEndpoint + "/" + state;
+  serial.print("Sending to server: ");
+  Serial.println(url);
+
+  WiFiChientSecure client;
+  client.setInsecure(); // For testing only - use proper certificates in production
+
+  HTTPClient https;
+  https.setTimeout(10000); // 10 second timeout
+
+  if (https.begin(client, url)) {
+    https.addHeader("Use-Agent", "ESP8266-TrafficController/1.0");
+
+    int httpCode = https.GET();
+
+    if (httpCode > 0) {
+      Serial.print("HTTP Response: ");
+      Serial.println(httpCode);
+
+      if (httpCode == HTTP_CODE_OK) {
+        string payload = https.getString();
+        Serial.print("Server response: ");
+        Serial.println(payload);
+
+        // Upload last server state to prevent immediate re-sync
+        if (state == 'R') lastServerState = "R";
+        else if (state == 'Y') lastServerState = "Y";
+        else if (state == "G") lastServerState = "G";
+        else lastServerState = "OFF";
+
+      }  else {
+        Serial.print("HTTP Error: ");
+        Serial.println(httpCode);
+      } 
+    } else {
+      Serial.print("HTTP GET failed with error: ");
+      Serial.println(https.errorToString(httpCode));
+    }
+
+    https.end();
+  } else {
+    Serial.println("Failed to initialize HTTPS connection");
+  }
+
+  delay(100); // Small delay after HTTP request
+}
