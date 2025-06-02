@@ -1,1 +1,83 @@
+void checkServerState() {
+  // Check WiFi connection
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi disconnected during server check");
+    return;
+  }
 
+  // Construct the full URL for the status endpoint
+  String url = String(baseFlaskURL) + statusEndpoint;
+
+  // Setup secure client (insecure for testing purposes)
+  WiFiClientSecure client;
+  client.setInsecure();  // ⚠️ Only use for testing
+
+  HTTPClient https;
+  https.setTimeout(5000);  // Set timeout to 5 seconds
+
+  // Initialize HTTP connection
+  if (https.begin(client, url)) {
+    https.addHeader("User-Agent", "ESP8266-TrafficController/1.0");
+
+    int httpCode = https.GET();
+
+    if (httpCode == HTTP_CODE_OK) {
+      String payload = https.getString();
+
+      // Extract values from JSON response
+      String serverState = extractJsonValue(payload, "light");
+      String source = extractJsonValue(payload, "source");
+
+      // Debugging output
+      Serial.println("Server response:");
+      Serial.println(payload);
+      Serial.println("Parsed state: " + serverState);
+      Serial.println("Source: " + source);
+
+      // Update only if the state came from the web and is different
+      if (source == "web" && serverState != lastServerState) {
+        lastServerState = serverState;
+        char newState = ' ';
+        if (serverState == "R") newState = 'R';
+        else if (serverState == "Y") newState ='Y';
+        else if (serverState == "G") newState = 'G';
+        else if (serverState == "OFF") newState = ' ';
+
+        // Update LEDs if different from current state
+        if (newState != currentLEDState){
+          setLEDState(newState);
+          currentLEDState = newState;
+          Serial.print("Remote command received - LED state changed to: ";
+          Serial.println(serverState);
+          }
+        }
+      } else if (httpCode != -1){ // Only log if not timeout
+        Serial.print("Server status check failed: ");
+        Serial.println(httpCode);
+      }
+    }
+  }
+
+  https.end();  // Clean up
+}
+
+void sendStateToServer(char state) {
+  // Check and reconnect WiFi if needed
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi disconnected! Attempting to reconnect...");
+    WiFi.begin(ssid, password);
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 10) {
+      delay(500);
+      Serial.print(".");
+      attempts++;
+    }
+
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("\nFailed to reconnect to WiFi");
+      return;
+    }
+  }
+
+  // TODO: Continue implementation of state sending logic...
+}
