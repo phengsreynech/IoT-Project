@@ -1,87 +1,116 @@
-        char newStare = ' ';
-        if (serverState == "R") newState = 'R';
-        else if (serverState == "Y") newState = 'Y';
-        else if (serverState == "G") newState = 'G';
-        else if (serverState == "OFF") newState = ' ';
+// Periodically check server for remote commands
+if (millis() - lastServerCheck > serverCheckInterval) {
+  checkServerState();
+  lastServerCheck = millis();
+}
 
-        // Update LEDs if different from current state
-        if (newState != currentLEDState) {
-          setLEDState(newState);
-          currentLEDState = newState;
-          Serial.print("Remote command received - LED state changed to: ");
-          serial.println(serverState);
-        }
-      }
-    } else if (httpCode != -1) {
-      Serial.print("Server status check failed: ");
-      serial.print(httpCode);
-    }
+delay(50); // Small delay for stability
 
-    https.end();
+// Function to get the manual button state
+char getManualState() {
+  // Read button states (LOW when pressed due to INPUT_PULLUP)
+  bool redPressed = (digitalRead(redBtn) == LOW);
+  bool yellowPressed = (digitalRead(yellowBtn) == LOW);
+  bool greenPressed = (digitalRead(greenBtn) == LOW);
+
+  // Debug: Show button states occasionally
+  static unsigned long lastDebug = 0;
+  if (millis() - lastDebug > 3000) { // Every 3 seconds
+    Serial.print("Button states - Red: ");
+    Serial.print(redPressed ? "PRESSED" : "RELEASED");
+    Serial.print(", Yellow: ");
+    Serial.print(yellowPressed ? "PRESSED" : "RELEASED");
+    Serial.print(", Green: ");
+    Serial.println(greenPressed ? "PRESSED" : "RELEASED");
+    lastDebug = millis();
+  }
+
+  if (redPressed) return 'R';
+  if (yellowPressed) return 'Y';
+  if (greenPressed) return 'G';
+  return ' '; // No button pressed
+}
+
+// Function to set LED state
+void setLEDState(char state) {
+  Serial.print("Setting LED state to: ");
+  Serial.println(state);
+
+  // Turn off all LEDs first
+  digitalWrite(redLED, LOW);
+  digitalWrite(yellowLED, LOW);
+  digitalWrite(greenLED, LOW);
+  Serial.println("All LEDs turned OFF");
+
+  // Turn on the appropriate LED
+  switch (state) {
+    case 'R':
+      digitalWrite(redLED, HIGH);
+      Serial.print("Red LED set to HIGH on pin D");
+      Serial.println(redLED);
+      // Verify the pin state
+      Serial.print("Pin D");
+      Serial.print(redLED);
+      Serial.print(" state: ");
+      Serial.println(digitalRead(redLED) ? "HIGH" : "LOW");
+      break;
+
+    case 'Y':
+      digitalWrite(yellowLED, HIGH);
+      Serial.print("Yellow LED set to HIGH on pin D");
+      Serial.println(yellowLED);
+      Serial.print("Pin D");
+      Serial.print(yellowLED);
+      Serial.print(" state: ");
+      Serial.println(digitalRead(yellowLED) ? "HIGH" : "LOW");
+      break;
+
+    case 'G':
+      digitalWrite(greenLED, HIGH);
+      Serial.print("Green LED set to HIGH on pin D");
+      Serial.println(greenLED);
+      Serial.print("Pin D");
+      Serial.print(greenLED);
+      Serial.print(" state: ");
+      Serial.println(digitalRead(greenLED) ? "HIGH" : "LOW");
+      break;
+
+    default:
+      Serial.println("All LEDs OFF (default case)");
+      break;
   }
 }
 
-void sendStateToServer(char state) {
-  // Check WiFi connection
-  if (WiFi.status() != WL_CONNECTION) {
-    Serial.println("WiFi disconnected! Attempting to reconnect...");
-    WiFi.begin(ssid, password);
-    int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 10) {
-      delay(500);
-      Serial.print(".");
-      attempts++;
-    }
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("Failed to reconnect to WiFi");
-      return;
-    }
-    Serial.println("WiFi reconnected");
+// Simple JSON parser function — extracts values without library
+String extractJsonValue(String json, String key) {
+  String searchKey = "\"" + key + "\":";
+  int startIndex = json.indexOf(searchKey);
+  if (startIndex == -1) return "";
+
+  startIndex += searchKey.length();
+
+  // Skip whitespace
+  while (startIndex < json.length() && 
+        (json.charAt(startIndex) == ' ' || json.charAt(startIndex) == '\t')) {
+    startIndex++;
   }
 
-  String url = String(baseFlaskurl) + setEndpoint + "/" + state;
-  serial.print("Sending to server: ");
-  Serial.println(url);
-
-  WiFiChientSecure client;
-  client.setInsecure(); // For testing only - use proper certificates in production
-
-  HTTPClient https;
-  https.setTimeout(10000); // 10 second timeout
-
-  if (https.begin(client, url)) {
-    https.addHeader("Use-Agent", "ESP8266-TrafficController/1.0");
-
-    int httpCode = https.GET();
-
-    if (httpCode > 0) {
-      Serial.print("HTTP Response: ");
-      Serial.println(httpCode);
-
-      if (httpCode == HTTP_CODE_OK) {
-        string payload = https.getString();
-        Serial.print("Server response: ");
-        Serial.println(payload);
-
-        // Upload last server state to prevent immediate re-sync
-        if (state == 'R') lastServerState = "R";
-        else if (state == 'Y') lastServerState = "Y";
-        else if (state == "G") lastServerState = "G";
-        else lastServerState = "OFF";
-
-      }  else {
-        Serial.print("HTTP Error: ");
-        Serial.println(httpCode);
-      } 
-    } else {
-      Serial.print("HTTP GET failed with error: ");
-      Serial.println(https.errorToString(httpCode));
-    }
-
-    https.end();
+  // Check if value is a string (starts with quote)
+  if (json.charAt(startIndex) == '\'') {
+    startIndex++; // Skip opening quote
+    int endIndex = json.indexOf('\'', startIndex);
+    if (endIndex == -1) return "";
+    return json.substring(startIndex, endIndex);
   } else {
-    Serial.println("Failed to initialize HTTPS connection");
+    // For non-string values, find end by comma or closing brace
+    int endIndex = startIndex;
+    while (endIndex < json.length() &&
+          json.charAt(endIndex) != ',' &&
+          json.charAt(endIndex) != '}' &&
+          json.charAt(endIndex) != ' ' &&
+          json.charAt(endIndex) != '\n') {
+      endIndex++;
+    }
+    return json.substring(startIndex, endIndex);
   }
-
-  delay(100); // Small delay after HTTP request
 }
